@@ -1,3 +1,10 @@
+# Time Lab y edición en ventanas — v0.3.0
+
+TIME LAB abre una ventana independiente y ampliable. FX WINDOW abre los efectos con controles grandes; ambas pueden coexistir con la principal. Cerrar la principal destruye sus ventanas auxiliares. Sus posiciones no se guardan.
+
+Para escuchar el nuevo motor aislado: NEUTRAL, TIME LAB, SCRATCH o REVERSE, TIME MIX 100%. Reproduce unos ciclos para llenar BUFFER. Arrastra la curva naranja de 33 puntos; Shift permite ajuste fino y el campo PUNTO admite números. SNAP ajusta verticalmente a la rejilla; LINEA interpola y STEPS hace saltos. Doble clic o botón derecho pone el punto a directo.
+
+El eje horizontal es tiempo musical; el vertical indica retardo hacia audio anterior (hasta dos ciclos). La onda azul muestra la envolvente de entrada reciente. No es un EQ ni edición destructiva del audio. Cambiar la velocidad modifica también la afinación. CHOP 16 repite fragmentos; TAPE STOP frena; SCRATCH alterna velocidad y dirección. DIRECTO desactiva Time Mix. Los presets guardan la curva, pero no el audio capturado.
 # Crear movimiento con DECIDERATOR 0.2.0
 
 ## Reverb, stutter y lo-fi

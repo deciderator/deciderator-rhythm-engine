@@ -63,3 +63,6 @@ buffer y commit usado. No marcar como aprobado un punto sin ejecutarlo.
 
 Las pruebas C++ cubren el procesador directamente; no sustituyen la validación del
 wrapper VST3, la GUI o la integración con FL Studio.
+
+## v0.3.0 en FL Studio
+Abrir TIME LAB y FX WINDOW simultáneamente; redimensionar, mover entre pantallas, cerrar y reabrir. Dibujar/automatizar la curva con audio; probar Reverse/Scratch y cambio de tempo. Guardar FLP/preset y comprobar la curva al reabrir. El buffer de audio no se restaura. Ver VERIFICATION.md para pruebas ejecutadas.

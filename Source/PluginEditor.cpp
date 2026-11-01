@@ -163,6 +163,9 @@ DecideratorPanel::DecideratorPanel(DecideratorProcessor& p) : processor(p)
     addAndMakeVisible(texturePage);
     texturePage.setClickingTogglesState(true);
     texturePage.onClick = [this] { showTextureControls(texturePage.getToggleState()); };
+    addAndMakeVisible(timeLabButton); addAndMakeVisible(fxWindowButton);
+    timeLabButton.onClick = [this] { if (onTimeLab) onTimeLab(); };
+    fxWindowButton.onClick = [this] { if (onFxInspector) onFxInspector(); };
     setSize(1000, 580);
     startTimerHz(24);
 }
@@ -186,7 +189,7 @@ void DecideratorPanel::paint(juce::Graphics& g)
     g.setColour(mint); g.setFont(juce::FontOptions(30.0f));
     g.drawText("DECIDERATOR", 28, 18, 360, 42, juce::Justification::centredLeft);
     g.setColour(muted); g.setFont(juce::FontOptions(12.0f));
-    g.drawText("RHYTHM ENGINE   /   CREATIVE AUDIO LAB   /   0.2.0", 30, 60, 580, 22, juce::Justification::centredLeft);
+    g.drawText("RHYTHM ENGINE   /   CREATIVE AUDIO LAB   /   0.3.0", 30, 60, 580, 22, juce::Justification::centredLeft);
     g.setColour(ink); g.setFont(juce::FontOptions(16.0f));
     const auto clockText = juce::String(processor.currentBpm.load(), 1) + " BPM  /  " + (processor.hostClock.load() ? "HOST SYNC" : "FREE CLOCK");
     g.drawText(clockText, 620, 26, 350, 30, juce::Justification::centredRight);
@@ -200,7 +203,7 @@ void DecideratorPanel::paint(juce::Graphics& g)
     g.setFont(juce::FontOptions(11.0f)); g.setColour(muted);
     g.drawText("VOLUMEN POR PASO", 36, 184, 150, 30, juce::Justification::centredLeft);
     g.drawText("APERTURA DEL FILTRO", 36, 304, 150, 30, juce::Justification::centredLeft);
-    g.drawText("Arrastra las barras. Doble clic: maximo. Los patrones actuan al subir PULSE y TONE.", 32, 382, 760, 20, juce::Justification::centredLeft);
+    g.drawText("TIME LAB: curva de tiempo y onda / FX WINDOW: controles ampliados", 360, 382, 610, 20, juce::Justification::centredLeft);
     g.drawText("STEP", 530, 74, 40, 20, juce::Justification::centredLeft);
     g.drawText("ECHO TIME", 665, 74, 70, 20, juce::Justification::centredLeft);
     g.drawText("BPM", 850, 74, 32, 20, juce::Justification::centredLeft);
@@ -217,7 +220,7 @@ void DecideratorPanel::paint(juce::Graphics& g)
         }
     }
     g.setColour(muted);
-    g.drawText("PULSE > TONE > HEAT > STUTTER / LO-FI > ECHO > SPACE > ORBIT > MIX / OUTPUT", 30, 548, 760, 22, juce::Justification::centredLeft);
+    g.drawText("PULSE > TONE > HEAT > REPEAT / LO-FI > TIME WARP > ECHO > SPACE > MIX", 30, 548, 760, 22, juce::Justification::centredLeft);
     g.setColour(mint); g.drawText("16 STEPS / STEREO", 800, 548, 170, 22, juce::Justification::centredRight);
 }
 
@@ -227,6 +230,7 @@ void DecideratorPanel::resized()
     driftScene.setBounds(324, 104, 140, 28); neutralScene.setBounds(472, 104, 110, 28);
     generate.setBounds(710, 104, 124, 28); undo.setBounds(844, 104, 128, 28);
     texturePage.setBounds(590, 104, 112, 28);
+    timeLabButton.setBounds(30, 379, 150, 22); fxWindowButton.setBounds(190, 379, 150, 22);
     stepRate.setBounds(570, 70, 85, 28); echoRate.setBounds(735, 70, 100, 28);
     tempo.setBounds(884, 70, 88, 28);
     for (int i = 0; i < 16; ++i)
@@ -255,6 +259,8 @@ DecideratorEditor::DecideratorEditor(DecideratorProcessor& p)
     const auto savedHeight = juce::jlimit(467, 902, p.editorHeight.load());
     setLookAndFeel(&look);
     addAndMakeVisible(panel);
+    panel.onTimeLab = [this] { openTimeLab(); };
+    panel.onFxInspector = [this] { openFxInspector(); };
     zoom.addItem("75% / compacto", 75);
     zoom.addItem("80%", 80);
     zoom.addItem("90%", 90);
@@ -280,7 +286,11 @@ DecideratorEditor::DecideratorEditor(DecideratorProcessor& p)
     setSize(savedWidth, savedHeight);
 }
 
-DecideratorEditor::~DecideratorEditor() { setLookAndFeel(nullptr); }
+DecideratorEditor::~DecideratorEditor()
+{
+    chooser.reset(); timeWindow.reset(); fxWindow.reset(); legalWindow.reset();
+    setLookAndFeel(nullptr);
+}
 
 void DecideratorEditor::paint(juce::Graphics& g)
 {
@@ -399,7 +409,7 @@ void DecideratorEditor::showLegal()
 {
     if (legalWindow == nullptr)
     {
-        juce::String text = "DECIDERATOR Rhythm Engine 0.2.0\nAGPL-3.0-only. Sin garantia.\n"
+        juce::String text = "DECIDERATOR Rhythm Engine 0.3.0\nAGPL-3.0-only. Sin garantia.\n"
             "Puedes modificar y redistribuir bajo esta licencia.\n"
             "SpaceFDN adapta Aquaton Reverb de aquanode (Aqua Node).\n"
             "Fuentes y scripts de compilacion incluidos en el paquete de distribucion.\n\n";
@@ -412,4 +422,15 @@ void DecideratorEditor::showLegal()
         legalWindow = std::make_unique<LegalViewer>(text);
     }
     legalWindow->setVisible(true); legalWindow->toFront(true);
+}
+
+void DecideratorEditor::openTimeLab()
+{
+    if (!timeWindow) timeWindow = std::make_unique<DetailWindow>("DECIDERATOR / TIME LAB", new TimeLab(processor), 1000, 570);
+    timeWindow->setVisible(true); timeWindow->toFront(true);
+}
+void DecideratorEditor::openFxInspector()
+{
+    if (!fxWindow) fxWindow = std::make_unique<DetailWindow>("DECIDERATOR / FX INSPECTOR", new FxInspector(processor), 760, 420);
+    fxWindow->setVisible(true); fxWindow->toFront(true);
 }

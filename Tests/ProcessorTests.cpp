@@ -30,6 +30,7 @@ static void fill(juce::AudioBuffer<float>& b)
 }
 void runCreativeTests();
 void runExtensionTests();
+void runTimeWarpTests();
 int main(int argc, char** argv)
 {
     std::cout << std::unitbuf;
@@ -89,6 +90,7 @@ int main(int argc, char** argv)
         std::cout << "PASS: layouts, stereo gain, 48 configurations, smoothing, state, invalid state, empty block\n";
         runCreativeTests();
         runExtensionTests();
+        runTimeWarpTests();
         {
             DecideratorProcessor ui;
             std::unique_ptr<juce::AudioProcessorEditor> editor(ui.createEditor());
@@ -127,6 +129,26 @@ int main(int argc, char** argv)
             require(stream->truncate().wasOk(), "Preview truncate");
             require(juce::PNGImageFormat().writeImageToStream(snapshot, *stream), "Preview render");
             std::cout << "PASS: editor snapshot rendered\n";
+        }
+        if (argc == 3 && juce::String(argv[1]) == "--time-preview")
+        {
+            DecideratorProcessor preview; preview.applyTimeShape(4); preview.prepareToPlay(48000, 512);
+            juce::AudioBuffer<float> audio(2, 512); juce::MidiBuffer midi;
+            for (int block = 0; block < 400; ++block)
+            {
+                for (int i = 0; i < 512; ++i)
+                {
+                    const auto t = (block * 512 + i) / 48000.0;
+                    audio.setSample(0, i, static_cast<float>(std::sin(t * 1382.3) * (0.3 + 0.2 * std::sin(t * 8))));
+                    audio.setSample(1, i, audio.getSample(0, i));
+                }
+                preview.processBlock(audio, midi);
+            }
+            TimeLab lab(preview);
+            auto snapshot = lab.createComponentSnapshot(lab.getLocalBounds());
+            juce::File file(juce::String::fromUTF8(argv[2])); auto stream = file.createOutputStream();
+            require(stream != nullptr && stream->setPosition(0) && stream->truncate().wasOk(), "Time preview file");
+            require(juce::PNGImageFormat().writeImageToStream(snapshot, *stream), "Time preview render");
         }
         return 0;
     }

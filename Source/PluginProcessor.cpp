@@ -6,8 +6,8 @@
 
 namespace
 {
-const std::array<const char*, 18> ids { "gainDb", "gateDepth", "filterDepth", "cutoff", "drive", "echo", "feedback", "motion", "mix",
-    "spaceMix", "spaceSize", "spaceDecay", "spaceTone", "spaceMotion", "glitchMix", "lofiMix", "lofiBits", "lofiRate" };
+const std::array<const char*, 19> ids { "gainDb", "gateDepth", "filterDepth", "cutoff", "drive", "echo", "feedback", "motion", "mix",
+    "spaceMix", "spaceSize", "spaceDecay", "spaceTone", "spaceMotion", "glitchMix", "lofiMix", "lofiBits", "lofiRate", "timeMix" };
 constexpr std::array<double, 5> stepBeats { 1.0, 0.5, 0.25, 0.125, 1.0 / 6.0 };
 constexpr std::array<double, 3> echoBeats { 0.5, 0.75, 1.0 };
 }
@@ -59,6 +59,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout DecideratorProcessor::makePa
     add("lofiMix", "Lo Fi mix", 0, 1, 0);
     add("lofiBits", "Lo Fi bits", 4, 16, 10);
     add("lofiRate", "Lo Fi hold", 1, 32, 4);
+    add("timeMix", "Time Warp mix", 0, 1, 0);
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID { "timeCycle", 1 }, "Time Warp cycle",
+        juce::StringArray { "1 beat", "2 beats", "4 beats" }, 2));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID { "timeShape", 1 }, "Time Warp interpolation",
+        juce::StringArray { "Linear", "Steps" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { "timeSnap", 1 }, "Time grid snap", true));
+    for (int i = 0; i < 33; ++i)
+        layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "timePoint" + juce::String(i), 1 },
+            "Time point " + juce::String(i + 1), 0.0f, 1.0f, 0.0f));
     return layout;
 }
 
@@ -77,6 +86,9 @@ DecideratorProcessor::DecideratorProcessor()
     tempo = parameters.getRawParameterValue("tempo");
     echoRate = parameters.getRawParameterValue("echoRate");
     glitchRate = parameters.getRawParameterValue("glitchRate");
+    timeCycle = parameters.getRawParameterValue("timeCycle");
+    timeShape = parameters.getRawParameterValue("timeShape");
+    for (int i = 0; i < 33; ++i) timePoints[static_cast<size_t>(i)] = parameters.getRawParameterValue("timePoint" + juce::String(i));
 }
 
 bool DecideratorProcessor::isBusesLayoutSupported(const BusesLayout& layout) const
@@ -84,6 +96,28 @@ bool DecideratorProcessor::isBusesLayoutSupported(const BusesLayout& layout) con
     return layout.inputBuses.size() == 1 && layout.outputBuses.size() == 1
         && layout.getMainInputChannelSet() == juce::AudioChannelSet::stereo()
         && layout.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
+}
+
+double DecideratorProcessor::getTailLengthSeconds() const
+{
+    if (controls[mix]->load() < 0.00001f) return 0;
+    const auto bpm = juce::jlimit(20.0, 400.0, static_cast<double>(currentBpm.load()));
+    double seconds = 0;
+    if (controls[timeMix]->load() > 0.00001f)
+        seconds += 120.0 / bpm * std::pow(2.0, juce::jlimit(0, 2, static_cast<int>(timeCycle->load())));
+    if (controls[echo]->load() > 0.00001f)
+    {
+        const auto fb = static_cast<double>(controls[feedback]->load());
+        seconds += 60.0 / bpm * echoBeats[static_cast<size_t>(juce::jlimit(0, 2, static_cast<int>(echoRate->load())))]
+            * (1.0 + (fb > 0.001 ? std::log(0.0001) / std::log(fb) : 0.0));
+    }
+    if (controls[spaceMix]->load() > 0.00001f)
+    {
+        const auto fb = 0.45 + 0.49 * controls[spaceDecay]->load();
+        seconds += 1733.0 / 44100.0 * (1.0 + 5.0 * controls[spaceSize]->load())
+            * (1.0 + std::log(0.0001) / std::log(fb));
+    }
+    return juce::jlimit(0.0, 180.0, seconds);
 }
 
 void DecideratorProcessor::prepareToPlay(double sampleRate, int)
@@ -100,6 +134,7 @@ void DecideratorProcessor::prepareToPlay(double sampleRate, int)
     delaySamples = sampleRateHz * 60.0 / tempo->load() * 0.75;
     space.prepare(sampleRateHz);
     texture.prepare(sampleRateHz);
+    timeWarp.prepare(sampleRateHz);
     reset();
 }
 
@@ -113,6 +148,7 @@ void DecideratorProcessor::reset()
     currentStep.store(0);
     space.reset();
     texture.reset();
+    timeWarp.reset();
 }
 
 void DecideratorProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -127,6 +163,8 @@ void DecideratorProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         smooth[i].setTargetValue(i == output ? juce::Decibels::decibelsToGain(value) : value);
     }
     std::array<float, 16> pulse {}, tone {};
+    std::array<float, 33> curve {};
+    for (size_t i = 0; i < curve.size(); ++i) curve[i] = timePoints[i]->load();
     for (size_t i = 0; i < 16; ++i) { pulse[i] = gateSteps[i]->load(); tone[i] = toneSteps[i]->load(); }
     double bpm = tempo->load(), ppq = freePpq;
     bool running = true, synced = false;
@@ -146,6 +184,10 @@ void DecideratorProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     const auto targetDelay = juce::jlimit(1.0, static_cast<double>(delay[0].size() - 2),
         sampleRateHz * 60.0 / bpm * echoBeats[static_cast<size_t>(juce::jlimit(0, 2, static_cast<int>(echoRate->load())))]);
     const auto beatIncrement = running ? bpm / (60.0 * sampleRateHz) : 0.0;
+    constexpr std::array<double, 3> cycleBeats { 1.0, 2.0, 4.0 };
+    const auto beatsPerCycle = cycleBeats[static_cast<size_t>(juce::jlimit(0, 2, static_cast<int>(timeCycle->load())))];
+    const auto cycleSamples = sampleRateHz * 60.0 / bpm * beatsPerCycle;
+    const auto steppedTime = timeShape->load() > 0.5f;
     constexpr std::array<double, 3> slices { 0.25, 0.125, 0.0625 };
     const auto sliceSamples = static_cast<int>(sampleRateHz * 60.0 / bpm
         * slices[static_cast<size_t>(juce::jlimit(0, 2, static_cast<int>(glitchRate->load())))]);
@@ -191,6 +233,9 @@ void DecideratorProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             wet[ch] = signal;
         }
         wet = texture.process(wet, static_cast<int>(step), sliceSamples, value[glitchMix], value[lofiMix], value[lofiBits], value[lofiRate]);
+        const auto timePosition = ppq / beatsPerCycle + 1.0e-10;
+        const auto timePhase = timePosition - std::floor(timePosition);
+        wet = timeWarp.process(wet, timePhase, cycleSamples, curve, steppedTime, value[timeMix]);
         for (size_t ch = 0; ch < 2; ++ch)
         {
             delay[ch][static_cast<size_t>(writePosition)] = std::tanh(wet[ch] + delayed[1 - ch] * value[feedback]);
@@ -265,6 +310,7 @@ void DecideratorProcessor::setParameter(const juce::String& id, float value)
 void DecideratorProcessor::applyScene(int index)
 {
     previousScene = parameters.copyState();
+    setTimeShape(index == 1 ? 1 : 0);
     setParameter("spaceMix", index == 2 ? 0.32f : (index == 3 ? 0.0f : 0.12f));
     setParameter("spaceSize", index == 2 ? 0.75f : 0.45f);
     setParameter("spaceDecay", index == 2 ? 0.8f : 0.5f);
@@ -314,6 +360,30 @@ void DecideratorProcessor::generatePattern()
     setParameter("spaceMix", 0.08f + random.nextFloat() * 0.3f);
     setParameter("glitchMix", random.nextFloat() * 0.5f);
     setParameter("lofiMix", random.nextFloat() * 0.3f);
+    setTimeShape(1 + random.nextInt(4));
+}
+
+void DecideratorProcessor::applyTimeShape(int index)
+{
+    previousScene = parameters.copyState();
+    setTimeShape(index);
+}
+
+void DecideratorProcessor::setTimeShape(int index)
+{
+    setParameter("timeMix", index == 0 ? 0.0f : 1.0f);
+    setParameter("timeCycle", 2);
+    setParameter("timeShape", index == 1 ? 1.0f : 0.0f);
+    for (int i = 0; i < 33; ++i)
+    {
+        const auto x = static_cast<float>(i) / 32.0f;
+        float value = 0;
+        if (index == 1) value = std::floor(x * 16.0f) / 32.0f;
+        if (index == 2) value = x;
+        if (index == 3) value = 0.25f * x * x;
+        if (index == 4) value = 0.35f + 0.28f * std::sin(x * juce::MathConstants<float>::twoPi * 3.0f);
+        setParameter("timePoint" + juce::String(i), value);
+    }
 }
 
 juce::File DecideratorProcessor::presetDirectory()
@@ -326,7 +396,7 @@ juce::Result DecideratorProcessor::savePreset(const juce::File& file)
     if (!file.hasFileExtension("decipreset")) return juce::Result::fail("Usa la extension .decipreset");
     auto root = std::make_unique<juce::XmlElement>("DECIDERATOR_PRESET");
     root->setAttribute("schema", 1);
-    root->setAttribute("pluginVersion", "0.2.0");
+    root->setAttribute("pluginVersion", "0.3.0");
     root->addChildElement(parameters.copyState().createXml().release());
     juce::TemporaryFile temporary(file);
     if (!root->writeTo(temporary.getFile()) || !temporary.overwriteTargetFileWithTemporary())

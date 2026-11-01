@@ -38,11 +38,11 @@ jobs:
           Copy-Item third_party dist -Recurse
           Copy-Item pluginval.log dist
           Copy-Item build/Testing/Temporary/LastTest.log dist/CTest.log
-          git archive --format=zip --output=dist/DECIDERATOR-0.2.0-source.zip HEAD
+          git archive --format=zip --output=dist/DECIDERATOR-0.3.0-source.zip HEAD
           git -C build/_deps/juce-src archive --format=zip --output=${{ github.workspace }}/dist/JUCE-8.0.12-source.zip HEAD
-          Compress-Archive -Path dist/* -DestinationPath DECIDERATOR-0.2.0-Windows-x64.zip
+          Compress-Archive -Path dist/* -DestinationPath DECIDERATOR-0.3.0-Windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: DECIDERATOR-0.2.0-Windows-x64
-          path: DECIDERATOR-0.2.0-Windows-x64.zip
+          name: DECIDERATOR-0.3.0-Windows-x64
+          path: DECIDERATOR-0.3.0-Windows-x64.zip
           if-no-files-found: error

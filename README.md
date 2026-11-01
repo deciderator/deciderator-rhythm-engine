@@ -1,4 +1,30 @@
-# DECIDERATOR Rhythm Engine v0.2.0
+# DECIDERATOR Rhythm Engine v0.3.0
+
+## Time Lab y ventanas de detalle
+
+TIME LAB abre una ventana independiente y redimensionable con onda de entrada
+reciente y curva de tiempo de 33 puntos. Arrastra puntos, dibuja líneas, usa SNAP
+o Shift para ajuste fino y cambia el retardo del punto seleccionado numéricamente.
+La curva controla tiempo, no frecuencias: arriba es directo y abajo son dos
+ciclos hacia el pasado. Pendientes y saltos producen reversa, frenado y scratch.
+
+Plantillas: DIRECTO, CHOP 16, REVERSE, TAPE STOP y SCRATCH. Cada plantilla activa
+TIME MIX al 100 % excepto DIRECTO. LINEA interpola; PASOS produce saltos con
+crossfade de 2 ms. Ciclos de 1, 2 o 4 negras, sincronizados al PPQ del host.
+
+FX WINDOW abre otra ventana con los efectos ampliados y valores numéricos.
+Principal, Time Lab e inspector pueden estar abiertos a la vez. Cerrar la
+principal cierra las ventanas auxiliares de esa instancia. Sus posiciones no
+se guardan; el tamaño de la ventana principal sí.
+
+Los puntos, ciclo, mezcla e interpolación son parámetros guardados en presets y
+proyectos. Estados antiguos recuperan TIME MIX a 0. La escena SHARDS nueva y
+GENERATE activan Time Warp. Para oírlo aislado: NEUTRAL, TIME LAB y SCRATCH o REVERSE.
+
+El motor usa sólo audio pasado: no anticipa el futuro ni es un editor destructivo
+de samples. Puede necesitar hasta dos ciclos de captura; mientras falte historia
+conserva la entrada. BUFFER indica el llenado. Los cambios de velocidad alteran
+el tono; no hay algoritmo de preservación de pitch ni sobremuestreo.
 
 ## Nuevo en 0.2.0
 
@@ -53,7 +79,7 @@ Consulta [CREATIVE-GUIDE.md](docs/CREATIVE-GUIDE.md) para el comportamiento exac
 3. Copia la carpeta completa `DECIDERATOR Rhythm Engine.vst3` a
    `C:\Program Files\Common Files\VST3`. Conserva una copia del bundle antiguo.
 4. Abre FL Studio > Options > Manage plugins > Find installed plugins. Carga el
-   efecto en un slot del Mixer y verifica que el panel indica **0.2.0**.
+   efecto en un slot del Mixer y verifica que el panel indica **0.3.0**.
 
 El bundle contiene `Contents/x86_64-win/DECIDERATOR Rhythm Engine.vst3` y los recursos;
 no copies únicamente el archivo interno. No tiene un ejecutable independiente.
@@ -90,7 +116,9 @@ captura del editor. Las pruebas del procesador no sustituyen un test del host.
 
 ## Alcance y limitaciones
 
-Estéreo, sin MIDI ni latencia añadida. Se declara una cola máxima de 30 s.
+Estéreo, sin MIDI ni latencia de compensación añadida. Time Warp crea retardos
+variables intencionados. La cola se estima dinámicamente según tempo y efectos,
+con un límite declarado de 180 s; sin efectos temporales activos es 0.
 Las escenas no son transacciones atómicas de todos los parámetros. Automatización
 por bloque con suavizado de 20 ms; no se promete precisión VST3 por muestra.
 El estado no incluye el contenido del retardo ni la fase del reloj de respaldo.

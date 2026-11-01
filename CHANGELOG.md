@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.3.0
+
+- Time Warp causal con 33 puntos, lectura estéreo interpolada y crossfade de saltos.
+- Plantillas de chop/reversa/tape stop/scratch, mezcla y ciclos sincronizados.
+- Time Lab independiente con onda reciente, rejilla, dibujo y ajuste numérico.
+- Inspector de efectos independiente, redimensionable y enlazado a los parámetros.
+- Compatibilidad de estados/presets anteriores con Time Warp apagado.
+- Estimación de cola dinámica para contemplar los retardos de Time Warp.
+
 ## 0.2.0
 
 - SpaceFDN, adaptación AGPL acreditada de Aquaton por aquanode: ocho líneas,

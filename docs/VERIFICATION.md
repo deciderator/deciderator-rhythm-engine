@@ -1,3 +1,12 @@
+## v0.3.0: Time Lab y ventanas independientes
+
+- Release x64 compilada localmente con MSVC/NMake, CMake y JUCE 8.0.12.
+- CTest: 1/1 aprobado, 3.87 segundos. Incluye referencia independiente de audio invertido, transparencia directa/dry, curva, estado/undo y estrés a 44.1/48/96 kHz.
+- pluginval 1.0.4 nivel 5: SUCCESS, con pruebas de editor habilitadas.
+- Time Lab renderizado con entrada sintética y revisado visualmente. Esto no prueba interacción de ventanas nativas en FL Studio.
+- Instalada v0.3.0; SHA256 del binario instalado coincide con el validado: 4BBEBBD7B0F775325077E1B42CBCD799A04D93C49B177D13C8EE478BF6F0E819.
+- Copia anterior conservada en outputs/backup-before-v0.3.0. Persistían dos procesos FL64 sin ventana; la copia del binario terminó correctamente sin cerrar procesos.
+- Pendiente: escucha, ventanas simultáneas/cierre/reapertura, DPI/multimonitor, FLP, automatización y render offline en FL Studio. CI de v0.3.0 no verificada al empaquetar.
 # Verificación de esta entrega — 2026-11-01
 
 ## Resultado final de v0.2.0

@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include "CreativeDSP.h"
+#include "TimeWarp.h"
 
 class DecideratorProcessor final : public juce::AudioProcessor
 {
@@ -19,7 +20,7 @@ public:
     const juce::String getName() const override { return "DECIDERATOR Rhythm Engine"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
-    double getTailLengthSeconds() const override { return 30.0; }
+    double getTailLengthSeconds() const override;
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram(int) override {}
@@ -33,6 +34,8 @@ public:
     juce::Result savePreset(const juce::File&);
     juce::Result loadPreset(const juce::File&);
     static juce::File presetDirectory();
+    void applyTimeShape(int index);
+    const TimeWarpEngine& getTimeWarp() const { return timeWarp; }
     std::atomic<int> currentStep { 0 };
     std::atomic<float> currentBpm { 120.0f };
     std::atomic<bool> hostClock { false };
@@ -40,9 +43,10 @@ public:
     juce::AudioProcessorValueTreeState parameters;
 private:
     enum Control { output, gateDepth, filterDepth, cutoff, drive, echo, feedback, motion, mix,
-                   spaceMix, spaceSize, spaceDecay, spaceTone, spaceMotion, glitchMix, lofiMix, lofiBits, lofiRate, numControls };
+                   spaceMix, spaceSize, spaceDecay, spaceTone, spaceMotion, glitchMix, lofiMix, lofiBits, lofiRate, timeMix, numControls };
     static juce::AudioProcessorValueTreeState::ParameterLayout makeParameters();
     void setParameter(const juce::String&, float);
+    void setTimeShape(int index);
     std::array<std::atomic<float>*, numControls> controls {};
     std::array<juce::SmoothedValue<float>, numControls> smooth;
     std::array<std::atomic<float>*, 16> gateSteps {}, toneSteps {};
@@ -50,6 +54,10 @@ private:
     std::atomic<float>* tempo = nullptr;
     std::atomic<float>* echoRate = nullptr;
     std::atomic<float>* glitchRate = nullptr;
+    std::atomic<float>* timeCycle = nullptr;
+    std::atomic<float>* timeShape = nullptr;
+    std::array<std::atomic<float>*, 33> timePoints {};
+    TimeWarpEngine timeWarp;
     SpaceFDN space;
     TextureEngine texture;
     std::array<std::vector<float>, 2> delay;

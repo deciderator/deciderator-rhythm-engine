@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #pragma once
 #include "PluginProcessor.h"
+#include "DetailEditors.h"
 
 class DecideratorLook final : public juce::LookAndFeel_V4
 {
@@ -19,6 +20,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void showTextureControls(bool);
+    std::function<void()> onTimeLab, onFxInspector;
 private:
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     void timerCallback() override;
@@ -33,6 +35,7 @@ private:
     std::array<juce::Label, 10> textureLabels;
     std::array<std::unique_ptr<Attachment>, 10> textureAttachments;
     juce::TextButton texturePage { "SPACE / FX" };
+    juce::TextButton timeLabButton { "TIME LAB" }, fxWindowButton { "FX WINDOW" };
     bool textureVisible = false;
     juce::ComboBox stepRate, echoRate;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> rateAttachment, echoAttachment;
@@ -59,6 +62,8 @@ private:
     void refreshPresets();
     void selectPreset();
     void showLegal();
+    void openTimeLab();
+    void openFxInspector();
     DecideratorProcessor& processor;
     DecideratorLook look;
     DecideratorPanel panel;
@@ -68,6 +73,7 @@ private:
                      previousPreset { "<" }, nextPreset { ">" }, legalButton { "CREDITOS" };
     std::unique_ptr<juce::FileChooser> chooser;
     std::unique_ptr<juce::DocumentWindow> legalWindow;
+    std::unique_ptr<DetailWindow> timeWindow, fxWindow;
     juce::Array<juce::File> presetFiles;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DecideratorEditor)
 };
