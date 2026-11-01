@@ -1,0 +1,48 @@
+name: Windows x64 VST3
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure MSVC x64
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTING=ON
+      - name: Build VST3 and tests
+        run: cmake --build build --config Release --parallel 2
+      - name: Processor tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Validate VST3 with pluginval 1.0.4
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip' -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath validator
+          $validationLog = & ./validator/pluginval.exe --strictness-level 5 --skip-gui-tests --validate "$pwd/build/Deciderator_artefacts/Release/VST3/DECIDERATOR Rhythm Engine.vst3" 2>&1 | Out-String
+          $validationLog | Set-Content pluginval.log
+          Write-Output $validationLog
+          if ($validationLog -notmatch 'SUCCESS') { throw 'pluginval did not report SUCCESS' }
+      - name: Package binary and corresponding source
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item 'build/Deciderator_artefacts/Release/VST3/DECIDERATOR Rhythm Engine.vst3' dist -Recurse
+          Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md,CHANGELOG.md dist
+          Copy-Item third_party dist -Recurse
+          Copy-Item pluginval.log dist
+          Copy-Item build/Testing/Temporary/LastTest.log dist/CTest.log
+          git archive --format=zip --output=dist/DECIDERATOR-0.2.0-source.zip HEAD
+          git -C build/_deps/juce-src archive --format=zip --output=${{ github.workspace }}/dist/JUCE-8.0.12-source.zip HEAD
+          Compress-Archive -Path dist/* -DestinationPath DECIDERATOR-0.2.0-Windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DECIDERATOR-0.2.0-Windows-x64
+          path: DECIDERATOR-0.2.0-Windows-x64.zip
+          if-no-files-found: error
