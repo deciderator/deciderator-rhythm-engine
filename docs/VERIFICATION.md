@@ -1,5 +1,15 @@
 # Verificación de esta entrega — 2026-11-01
 
+## Resultado final de v0.2.0
+
+- Instalado y publicado como pre-release: https://github.com/deciderator/deciderator-rhythm-engine/releases/tag/v0.2.0
+- Fuente de la versión y binario local: commit 6a2e2d78c01fa7d57e6d7599399b5ef4e61ce09c.
+- GitHub Actions Windows x64, ejecución 41331411372: **SUCCESS** en configuración, compilación, CTest, pluginval nivel 5 (sin GUI en CI), empaquetado y subida del artefacto.
+  https://github.com/deciderator/deciderator-rhythm-engine/actions/runs/41331411372
+- ZIP público SHA256: CFA949642ABDAAFA4B49154FC81A9CB8325BA5E852B90328004A378F875DE227. Coincide con el paquete local.
+- La validación local con pluginval sí incluyó los tests de editor. Se conservan logs en el paquete.
+- Se abrió FL Studio 2026 para una prueba manual, pero la captura de ventana falló tras dos intentos. No se verificó la carga ni el audio dentro de FL Studio en esa prueba; se dejó abierto para el usuario.
+
 ## v0.2.0: efectos complementarios y presets
 
 - Compilación Release x64 ejecutada con MSVC 19.52.37025, CMake 4.5.0-rc2,
